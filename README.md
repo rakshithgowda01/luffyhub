@@ -5,10 +5,9 @@ A terminal-style, read-only C programming documentation viewer built with Next.j
 ## Features
 
 - Semester and subject navigation (1st & 2nd Sem)
-- Lab programs for Data Structures (20 programs)
 - Notes / Lab Programs / Important section tabs
 - Search, copy, and download program code
-- Admin panel for in-memory CRUD (login: `luffy` / `luffy`)
+- Admin panel for in-memory CRUD 
 - Mobile-responsive terminal UI
 
 ## Tech Stack
