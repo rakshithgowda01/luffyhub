@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 
 const PHOTO_PATH = "/home/photo.jpg";
@@ -68,14 +67,12 @@ export default function HomePage() {
             />
             <div className="relative h-full w-full">
               {!photoError ? (
-                <Image
-                  src={PHOTO_PATH}
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`${PHOTO_PATH}?v=2`}
                   alt="Profile photo"
-                  fill
-                  className="object-cover object-center grayscale"
+                  className="absolute inset-0 h-full w-full object-cover object-center grayscale"
                   onError={() => setPhotoError(true)}
-                  priority
-                  sizes="(max-width: 640px) 100vw, 28vw"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-black/60 p-4 text-center text-[10px] leading-relaxed text-white/40">
@@ -109,7 +106,7 @@ export default function HomePage() {
                 {!gifError ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={GIF_PATH}
+                    src={`${GIF_PATH}?v=2`}
                     alt="Animation"
                     className="h-full w-full object-contain"
                     onError={() => setGifError(true)}
