@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
+});
+
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  variable: "--font-orbitron",
 });
 
 export const metadata: Metadata = {
@@ -24,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${jetbrainsMono.variable} h-full`}>
-      <body className="h-full overflow-hidden bg-black font-mono text-white antialiased">
+    <html lang="en" className={`${jetbrainsMono.variable} ${orbitron.variable} h-full`}>
+      <body className="min-h-full overflow-x-hidden bg-black font-mono text-white antialiased">
         {children}
       </body>
     </html>
