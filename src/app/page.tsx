@@ -1,5 +1,5 @@
-import HomePage from "./components/HomePage";
+import TerminalApp from "./components/TerminalApp";
 
 export default function Home() {
-  return <HomePage />;
+  return <TerminalApp />;
 }

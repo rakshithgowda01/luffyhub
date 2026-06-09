@@ -17,6 +17,7 @@ interface HeaderProps {
   onNavigate: (index: number) => void;
   onSearchOpen: () => void;
   onProfileClick: () => void;
+  onLogoClick: () => void;
   isAdmin: boolean;
   showProgramControls: boolean;
   canBrowsePrograms: boolean;
@@ -35,6 +36,7 @@ export default function Header({
   onNavigate,
   onSearchOpen,
   onProfileClick,
+  onLogoClick,
   isAdmin,
   showProgramControls,
   canBrowsePrograms,
@@ -160,13 +162,17 @@ export default function Header({
       ref={navRef}
       className="flex shrink-0 items-center gap-2 border-b border-[#27272a] px-3 py-2 sm:px-4 sm:py-2.5"
     >
-      <div className="flex min-w-0 shrink items-center gap-1.5 text-xs text-white sm:text-sm">
+      <button
+        type="button"
+        onClick={onLogoClick}
+        className="flex min-w-0 shrink items-center gap-1.5 text-xs text-white hover:opacity-80 sm:text-sm"
+      >
         <span className="shrink-0 text-[#a1a1aa]">[—]</span>
         <span className="truncate">luffy&apos;s hub</span>
         <span className="shrink-0" aria-hidden="true">
           {skull}
         </span>
-      </div>
+      </button>
 
       <SemesterDropdown selected={semester} onSelect={onSemesterChange} />
 

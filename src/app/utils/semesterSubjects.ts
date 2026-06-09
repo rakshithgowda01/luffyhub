@@ -58,14 +58,20 @@ export function hasProgramSubject(subject: string): boolean {
   return PROGRAM_SUBJECTS.has(subject.toLowerCase());
 }
 
-export function getSectionsForSubject(subject: string): Section[] {
+export function getSectionsForSubject(
+  subject: string,
+  pendingSemester = false
+): Section[] {
+  if (pendingSemester) {
+    return ["home"];
+  }
   if (isNotesOnlySubject(subject)) {
-    return ["notes"];
+    return ["home", "notes"];
   }
   if (hasProgramSubject(subject)) {
-    return ["notes", "lab programs", "important"];
+    return ["home", "notes", "lab programs", "important"];
   }
-  return ["notes", "important"];
+  return ["home", "notes", "important"];
 }
 
 export function canShowProgramControls(
@@ -92,12 +98,6 @@ export function canShowLabPrograms(
   );
 }
 
-export function getDefaultSection(subject: string): Section {
-  if (isNotesOnlySubject(subject)) {
-    return "notes";
-  }
-  if (hasProgramSubject(subject)) {
-    return "lab programs";
-  }
-  return "notes";
+export function getDefaultSection(): Section {
+  return "home";
 }

@@ -12,10 +12,11 @@ import {
   isPendingSemester,
   LAB_PROGRAMS_SUBJECT,
 } from "../utils/semesterSubjects";
-import { BUSY_MESSAGE, Program, Section } from "../utils/types";
+import { Program, Section } from "../utils/types";
 import AdminPanel from "./AdminPanel";
 import BusyView from "./BusyView";
 import Header from "./Header";
+import HomePage from "./HomePage";
 import ProgramView from "./ProgramView";
 import SearchModal from "./SearchModal";
 import SectionTabs from "./SectionTabs";
@@ -24,10 +25,10 @@ const SKULLS = ["💀", "☠️"];
 
 export default function TerminalApp() {
   const [programs, setPrograms] = useState<Program[]>(preloadedPrograms);
-  const [currentIndex, setCurrentIndex] = useState<number | null>(0);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [semester, setSemester] = useState("2nd Sem");
   const [subject, setSubject] = useState(LAB_PROGRAMS_SUBJECT);
-  const [activeSection, setActiveSection] = useState<Section>("lab programs");
+  const [activeSection, setActiveSection] = useState<Section>("home");
   const [skullIndex, setSkullIndex] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -39,7 +40,7 @@ export default function TerminalApp() {
     [semester]
   );
   const availableSections = useMemo(
-    () => (pendingSemester ? [] : getSectionsForSubject(subject)),
+    () => getSectionsForSubject(subject, pendingSemester),
     [pendingSemester, subject]
   );
 
@@ -110,6 +111,10 @@ export default function TerminalApp() {
     sub: string,
     section: Section
   ) {
+    if (section === "home") {
+      setCurrentIndex(null);
+      return;
+    }
     if (canShowLabPrograms(sem, sub, section)) {
       setCurrentIndex(0);
     } else {
@@ -122,13 +127,14 @@ export default function TerminalApp() {
 
     if (isPendingSemester(sem)) {
       setSubject("");
+      setActiveSection("home");
       setCurrentIndex(null);
       return;
     }
 
     const semSubjects = getSubjectsForSemester(sem);
     const newSubject = semSubjects[0];
-    const newSection = getDefaultSection(newSubject);
+    const newSection = getDefaultSection();
 
     setSubject(newSubject);
     setActiveSection(newSection);
@@ -139,7 +145,7 @@ export default function TerminalApp() {
     setSubject(sub);
 
     if (isNotesOnlySubject(sub)) {
-      setActiveSection("notes");
+      setActiveSection("home");
       setCurrentIndex(null);
       return;
     }
@@ -147,7 +153,7 @@ export default function TerminalApp() {
     const sections = getSectionsForSubject(sub);
     const section = sections.includes(activeSection)
       ? activeSection
-      : getDefaultSection(sub);
+      : getDefaultSection();
 
     setActiveSection(section);
     applyProgramState(semester, sub, section);
@@ -158,7 +164,16 @@ export default function TerminalApp() {
     applyProgramState(semester, subject, section);
   }
 
+  function goHome() {
+    setActiveSection("home");
+    setCurrentIndex(null);
+  }
+
   function renderContent() {
+    if (activeSection === "home") {
+      return <HomePage />;
+    }
+
     if (pendingSemester || !canBrowsePrograms) {
       return <BusyView />;
     }
@@ -189,21 +204,20 @@ export default function TerminalApp() {
         onNavigate={navigate}
         onSearchOpen={() => setShowSearch(true)}
         onProfileClick={() => setShowAdmin(true)}
+        onLogoClick={goHome}
         isAdmin={isAdmin}
         showProgramControls={showProgramControls}
         canBrowsePrograms={canBrowsePrograms}
         showSubjectDropdown={!pendingSemester}
       />
 
-      {!pendingSemester && (
-        <SectionTabs
-          sections={availableSections}
-          active={activeSection}
-          onChange={handleSectionChange}
-        />
-      )}
+      <SectionTabs
+        sections={availableSections}
+        active={activeSection}
+        onChange={handleSectionChange}
+      />
 
-      <main className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
+      <main className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {renderContent()}
       </main>
 

@@ -13,4 +13,4 @@ export const BUSY_MESSAGE =
 export const ADMIN_USERNAME = "luffy";
 export const ADMIN_PASSWORD = "luffy";
 
-export type Section = "notes" | "lab programs" | "important";
+export type Section = "home" | "notes" | "lab programs" | "important";

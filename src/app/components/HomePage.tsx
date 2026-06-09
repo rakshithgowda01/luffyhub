@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 
 const PHOTO_PATH = "/home/photo.jpg";
@@ -21,7 +20,7 @@ function HexOutline({ className = "" }: { className?: string }) {
 
 function LogoMark() {
   return (
-    <svg viewBox="0 0 40 32" className="h-7 w-9 shrink-0" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 40 32" className="h-6 w-8 shrink-0 sm:h-7 sm:w-9" fill="none" aria-hidden="true">
       <path d="M4 28 L20 4 L36 28" stroke="white" strokeWidth="2" />
       <path d="M12 28 L20 16 L28 28" stroke="white" strokeWidth="1.5" />
     </svg>
@@ -32,7 +31,7 @@ function FooterDecor() {
   return (
     <svg
       viewBox="0 0 120 24"
-      className="h-5 w-24 shrink-0 text-white"
+      className="hidden h-5 w-20 shrink-0 text-white sm:block sm:w-24"
       fill="none"
       aria-hidden="true"
     >
@@ -45,14 +44,14 @@ function FooterDecor() {
 
 function RulerScale() {
   return (
-    <div className="mt-1 flex items-end gap-[3px] px-2">
+    <div className="mt-1 flex items-end gap-[2px] px-1 sm:gap-[3px] sm:px-2">
       {Array.from({ length: 9 }).map((_, i) => (
         <div key={i} className="flex flex-col items-center gap-0.5">
           <div
             className="w-px bg-white"
-            style={{ height: i % 2 === 0 ? 10 : 6 }}
+            style={{ height: i % 2 === 0 ? 8 : 5 }}
           />
-          <span className="text-[7px] text-white/70">{i}</span>
+          <span className="text-[6px] text-white/70 sm:text-[7px]">{i}</span>
         </div>
       ))}
     </div>
@@ -64,31 +63,27 @@ export default function HomePage() {
   const [gifError, setGifError] = useState(false);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-black p-3 sm:p-6">
-      <Link
-        href="/hub"
-        className="group w-full max-w-4xl border border-white/90 transition-colors hover:border-white"
-        aria-label="Enter Luffy's Hub"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/40 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+    <div className="flex min-h-full flex-1 flex-col bg-black p-2 sm:p-4">
+      <div className="flex min-h-0 flex-1 flex-col border border-white/90">
+        {/* Card header */}
+        <div className="flex items-center justify-between border-b border-white/40 px-3 py-2 sm:px-6 sm:py-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <LogoMark />
-            <span className="font-[family-name:var(--font-orbitron)] text-xl tracking-[0.35em] text-white sm:text-2xl">
+            <span className="font-[family-name:var(--font-orbitron)] text-lg tracking-[0.3em] text-white sm:text-2xl sm:tracking-[0.35em]">
               LUFFY
             </span>
           </div>
-          <div className="flex gap-2 sm:gap-3">
-            <HexOutline className="h-4 w-4 text-white" />
-            <HexOutline className="h-4 w-4 text-white" />
-            <HexOutline className="h-4 w-4 text-white" />
+          <div className="flex gap-1.5 sm:gap-3">
+            <HexOutline className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
+            <HexOutline className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
+            <HexOutline className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
           </div>
         </div>
 
-        {/* Main */}
-        <div className="grid grid-cols-1 border-b border-white/40 sm:grid-cols-[minmax(140px,220px)_1fr]">
+        {/* Main — grows to fill screen */}
+        <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[minmax(160px,28%)_1fr]">
           {/* Photo */}
-          <div className="relative aspect-square border-b border-white/40 sm:border-b-0 sm:border-r sm:border-white/40">
+          <div className="relative min-h-[200px] border-b border-white/40 sm:min-h-0 sm:border-b-0 sm:border-r sm:border-white/40">
             <div
               className="absolute inset-0"
               style={{
@@ -102,7 +97,7 @@ export default function HomePage() {
                 backgroundPosition: "10px 0, 10px 0, 0 0, 0 0",
               }}
             />
-            <div className="relative flex h-full w-full items-center justify-center p-3">
+            <div className="relative h-full min-h-[200px] w-full sm:min-h-full">
               {!photoError ? (
                 <Image
                   src={PHOTO_PATH}
@@ -111,11 +106,11 @@ export default function HomePage() {
                   className="object-cover object-center grayscale"
                   onError={() => setPhotoError(true)}
                   priority
-                  sizes="(max-width: 640px) 100vw, 220px"
+                  sizes="(max-width: 640px) 100vw, 28vw"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center border border-dashed border-white/30 bg-black/60 text-center text-[10px] leading-relaxed text-white/40">
-                  photo
+                <div className="flex h-full min-h-[200px] items-center justify-center border border-dashed border-white/30 bg-black/60 p-4 text-center text-[10px] leading-relaxed text-white/40 sm:min-h-full">
+                  drop your photo at
                   <br />
                   public/home/photo.jpg
                 </div>
@@ -124,39 +119,24 @@ export default function HomePage() {
           </div>
 
           {/* Info panel */}
-          <div className="flex flex-col text-white">
-            <div className="border-b border-white/40 px-4 py-3 sm:px-5">
-              <p className="text-[11px] tracking-widest text-white/90 sm:text-xs">
+          <div className="flex min-h-0 flex-col text-white">
+            <div className="border-b border-white/40 px-3 py-3 sm:px-5">
+              <p className="text-[10px] tracking-widest text-white/90 sm:text-xs">
                 LUFFY, HUB
               </p>
-              <div className="mt-2 inline-block bg-white px-3 py-1">
-                <span className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold tracking-[0.25em] text-black sm:text-xs">
+              <div className="mt-2 inline-block bg-white px-2.5 py-1 sm:px-3">
+                <span className="font-[family-name:var(--font-orbitron)] text-[9px] font-bold tracking-[0.2em] text-black sm:text-xs sm:tracking-[0.25em]">
                   PROCRASTINATOR
                 </span>
               </div>
-              <p className="mt-2 text-[10px] tracking-wider text-white/60">
+              <p className="mt-2 text-[9px] tracking-wider text-white/60 sm:text-[10px]">
                 PRCR.4T42
               </p>
             </div>
 
-            <div className="grid grid-cols-1 border-b border-white/40 text-[9px] tracking-wide sm:grid-cols-2 sm:text-[10px]">
-              <div className="border-b border-white/20 px-4 py-2 sm:border-b-0 sm:border-r sm:border-white/20 sm:px-5">
-                <span className="text-white/50">TOUR START:</span> 29.09.2035
-              </div>
-              <div className="border-b border-white/20 px-4 py-2 sm:border-b-0 sm:px-5">
-                <span className="text-white/50">HA:</span> E95381.NJ814
-              </div>
-              <div className="border-b border-white/20 px-4 py-2 sm:border-b-0 sm:border-r sm:border-white/20 sm:px-5">
-                <span className="text-white/50">TOUR END:</span> EXTEND
-              </div>
-              <div className="px-4 py-2 sm:px-5">
-                <span className="text-white/50">HI:</span> E95381
-              </div>
-            </div>
-
-            <div className="grid flex-1 grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[auto_1fr] sm:px-5">
-              {/* GIF / hex flower area */}
-              <div className="relative mx-auto flex h-24 w-24 items-center justify-center sm:mx-0 sm:h-28 sm:w-28">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 px-3 py-4 sm:flex-row sm:gap-6 sm:px-5 sm:py-5">
+              {/* GIF */}
+              <div className="relative mx-auto flex h-28 w-28 shrink-0 items-center justify-center sm:mx-0 sm:h-32 sm:w-32">
                 {!gifError ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -166,75 +146,59 @@ export default function HomePage() {
                     onError={() => setGifError(true)}
                   />
                 ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center border border-dashed border-white/30 text-center text-[8px] leading-relaxed text-white/40">
-                    gif
+                  <div className="flex h-full w-full flex-col items-center justify-center border border-dashed border-white/30 p-2 text-center text-[8px] leading-relaxed text-white/40">
+                    drop your gif at
                     <br />
-                    public/home/
-                    <br />
-                    animation.gif
+                    public/home/animation.gif
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col justify-center">
-                <p className="font-[family-name:var(--font-orbitron)] text-2xl tracking-[0.15em] sm:text-3xl">
-                  33&nbsp;&nbsp;74&nbsp;&nbsp;17&nbsp;&nbsp;90
+              {/* About Luffy's Hub */}
+              <div className="flex flex-1 flex-col justify-center">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 sm:text-xs">
+                  about luffy&apos;s hub
                 </p>
-                <p className="mt-2 text-[9px] text-white/50 sm:text-[10px]">
-                  luffy@hub.terminal
+                <p className="mt-2 text-xs leading-relaxed text-white/80 sm:text-sm sm:leading-relaxed">
+                  Luffy&apos;s Hub is a college supporter platform built for
+                  students — access lab programs as quick cheats, browse notes,
+                  and find important study material semester-wise. pick your sem,
+                  subject, and tab above to get started.
                 </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-4 border-t border-white/40 px-4 py-2 text-[8px] leading-relaxed text-white/45 sm:px-5 sm:text-[9px]">
-              <div className="space-y-0.5">
-                <p>&gt;LUF</p>
-                <p>&gt;AGE 20</p>
-                <p>&gt;BANGALORE, IN</p>
-                <p>&gt;EYES BRO</p>
-                <p>&gt;HAIR BLK</p>
-                <p>&gt;HGT 175</p>
-              </div>
-              <div className="space-y-0.5">
-                <p>&gt;WGT 65</p>
-                <p>&gt;BLOOD O+</p>
-                <p>&gt;UNIT DS-2</p>
-                <p>&gt;CLEAR Y</p>
-                <p>&gt;AUTH LVL 3</p>
-                <p>&gt;STATUS ACTIVE</p>
+                <ul className="mt-3 space-y-1 text-[10px] text-white/50 sm:text-xs">
+                  <li>&gt; lab programs — copy &amp; download code</li>
+                  <li>&gt; notes — subject notes (coming soon)</li>
+                  <li>&gt; important — key topics (coming soon)</li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col items-center gap-2 px-4 py-3 sm:flex-row sm:justify-between sm:px-6">
+        <div className="flex flex-col items-center gap-2 border-t border-white/40 px-3 py-2 sm:flex-row sm:justify-between sm:px-6 sm:py-3">
           <div className="flex items-center gap-2">
             <FooterDecor />
-            <span className="text-[8px] tracking-[0.2em] text-white/70 sm:text-[9px]">
+            <span className="text-[7px] tracking-[0.15em] text-white/70 sm:text-[9px] sm:tracking-[0.2em]">
               LUFFY&apos;S HUB
             </span>
           </div>
 
           <div className="flex flex-col items-center">
-            <span className="text-[9px] tracking-[0.3em] text-white sm:text-[10px]">
+            <span className="text-[8px] tracking-[0.25em] text-white sm:text-[10px] sm:tracking-[0.3em]">
               HAN-IV PERSONNEL
             </span>
             <RulerScale />
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[8px] tracking-[0.2em] text-white/70 sm:text-[9px]">
+            <span className="text-[7px] tracking-[0.15em] text-white/70 sm:text-[9px] sm:tracking-[0.2em]">
               LUFFY CORPORATION
             </span>
             <FooterDecor />
           </div>
         </div>
-
-        <p className="border-t border-white/20 py-2 text-center text-[9px] tracking-widest text-white/30 opacity-0 transition-opacity group-hover:opacity-100">
-          click to enter →
-        </p>
-      </Link>
+      </div>
     </div>
   );
 }

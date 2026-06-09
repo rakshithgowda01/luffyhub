@@ -1,5 +1,5 @@
-import TerminalApp from "../components/TerminalApp";
+import { redirect } from "next/navigation";
 
 export default function HubPage() {
-  return <TerminalApp />;
+  redirect("/");
 }
