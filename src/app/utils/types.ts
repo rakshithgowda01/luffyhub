@@ -3,6 +3,7 @@ export interface Program {
   title: string;
   shortTitle: string;
   code: string;
+  shortCode: string;
   explanation: string;
   output: string;
 }

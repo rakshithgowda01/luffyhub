@@ -22,6 +22,7 @@ const emptyProgram = (): Program => ({
   title: "",
   shortTitle: "",
   code: "",
+  shortCode: "",
   explanation: "",
   output: "",
 });
@@ -139,16 +140,16 @@ export default function AdminPanel({
             <h2 className="mb-4 text-sm text-white">
               {isNew ? "Add Program" : "Edit Program"}
             </h2>
-            {(["title", "shortTitle", "code", "explanation", "output"] as const).map((field) => (
+            {(["title", "shortTitle", "code", "shortCode", "explanation", "output"] as const).map((field) => (
               <label key={field} className="mb-3 block">
                 <span className="text-xs capitalize text-[#a1a1aa]">{field}</span>
-                {field === "code" || field === "output" ? (
+                {field === "code" || field === "shortCode" || field === "output" ? (
                   <textarea
                     value={editing[field]}
                     onChange={(e) =>
                       setEditing({ ...editing, [field]: e.target.value })
                     }
-                    rows={field === "code" ? 10 : 4}
+                    rows={field === "code" ? 10 : field === "shortCode" ? 8 : 4}
                     className="mt-1 w-full border border-[#27272a] bg-black px-3 py-2 text-sm text-white outline-none"
                   />
                 ) : (

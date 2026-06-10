@@ -13,13 +13,16 @@ export function parseProgramsFromTxt(content: string): Program[] {
     if (!trimmed) continue;
 
     const titleMatch = trimmed.match(/^Program \d+\s*\nTitle:\s*(.+)$/m);
-    const codeMatch = trimmed.match(/Code:\s*\n([\s\S]*?)\nExplanation:/);
+    const codeMatch = trimmed.match(/Code:\s*\n([\s\S]*?)\nShort Code:/);
+    const shortCodeMatch = trimmed.match(/Short Code:\s*\n([\s\S]*?)\nExplanation:/);
+    const legacyCodeMatch = trimmed.match(/Code:\s*\n([\s\S]*?)\nExplanation:/);
     const explanationMatch = trimmed.match(
       /Explanation:\s*\n([\s\S]*?)\nOutput:/
     );
     const outputMatch = trimmed.match(/Output:\s*\n([\s\S]*)$/);
 
-    if (!titleMatch || !codeMatch || !explanationMatch || !outputMatch) {
+    const code = codeMatch?.[1] ?? legacyCodeMatch?.[1];
+    if (!titleMatch || !code || !explanationMatch || !outputMatch) {
       continue;
     }
 
@@ -27,7 +30,8 @@ export function parseProgramsFromTxt(content: string): Program[] {
       id: programs.length + 1,
       title: titleMatch[1].trim(),
       shortTitle: titleMatch[1].trim(),
-      code: codeMatch[1].trimEnd(),
+      code: code.trimEnd(),
+      shortCode: shortCodeMatch?.[1]?.trimEnd() ?? "",
       explanation: explanationMatch[1].trim(),
       output: outputMatch[1].trim(),
     });

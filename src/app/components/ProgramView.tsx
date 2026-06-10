@@ -55,14 +55,56 @@ function highlightLine(line: string, lineKey: number): React.ReactNode {
   });
 }
 
+function CodeBlock({
+  code,
+  label,
+  onCopy,
+  copied,
+}: {
+  code: string;
+  label: string;
+  onCopy: () => void;
+  copied: boolean;
+}) {
+  return (
+    <div className="border border-[#27272a]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#27272a] px-3 py-2 sm:px-4">
+        <span className="text-xs text-[#a1a1aa]">{label}</span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="text-xs text-[#a1a1aa] hover:text-white"
+        >
+          {copied ? "copied" : "⎘ copy"}
+        </button>
+      </div>
+      <pre className="no-scrollbar overflow-x-auto p-3 text-xs leading-relaxed text-white sm:p-4 sm:text-sm">
+        <code>
+          {code.split("\n").map((line, i) => (
+            <div key={i}>{highlightLine(line, i)}</div>
+          ))}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
 export default function ProgramView({ program, programIndex }: ProgramViewProps) {
   const [copied, setCopied] = useState(false);
+  const [shortCopied, setShortCopied] = useState(false);
   const filename = `program_${String(programIndex + 1).padStart(2, "0")}.c`;
+  const shortFilename = `program_${String(programIndex + 1).padStart(2, "0")}_short.c`;
 
   function handleCopy() {
     navigator.clipboard.writeText(program.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleShortCopy() {
+    navigator.clipboard.writeText(program.shortCode);
+    setShortCopied(true);
+    setTimeout(() => setShortCopied(false), 2000);
   }
 
   function handleDownload() {
@@ -127,7 +169,7 @@ export default function ProgramView({ program, programIndex }: ProgramViewProps)
         </div>
       </section>
 
-      <section className="mt-6 pb-4 sm:mt-8">
+      <section className="mt-6 sm:mt-8">
         <h3 className="mb-2 text-xs tracking-wider text-[#52525b] sm:mb-3">
           OUTPUT
         </h3>
@@ -135,6 +177,23 @@ export default function ProgramView({ program, programIndex }: ProgramViewProps)
           <pre className="text-xs text-[#a1a1aa] sm:text-sm">{program.output}</pre>
         </div>
       </section>
+
+      {program.shortCode && (
+        <section className="mt-6 pb-4 sm:mt-8">
+          <h3 className="mb-2 text-xs tracking-wider text-[#52525b] sm:mb-3">
+            SHORT VERSION
+          </h3>
+          <p className="mb-2 text-[10px] text-[#52525b] sm:text-xs">
+            condensed cheat — same output as above
+          </p>
+          <CodeBlock
+            code={program.shortCode}
+            label={shortFilename}
+            onCopy={handleShortCopy}
+            copied={shortCopied}
+          />
+        </section>
+      )}
     </div>
   );
 }

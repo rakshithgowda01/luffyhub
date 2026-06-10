@@ -1,6 +1,7 @@
+import { applyShortCodes } from "./programShortCodes";
 import { Program } from "./types";
 
-export const preloadedPrograms: Program[] = [
+const rawPrograms: Omit<Program, "shortCode">[] = [
   {
     id: 1,
     title: "Program to find GCD using recursive function.",
@@ -829,3 +830,7 @@ int main() {
     output: `Inorder Traversal: 2 1 3`,
   },
 ];
+
+export const preloadedPrograms: Program[] = applyShortCodes(
+  rawPrograms.map((p) => ({ ...p, shortCode: "" }))
+);

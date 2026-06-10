@@ -8,6 +8,8 @@ export function exportProgramsToTxt(programs: Program[]): string {
         `Title: ${program.title}`,
         "Code:",
         program.code,
+        "Short Code:",
+        program.shortCode,
         "Explanation:",
         program.explanation,
         "Output:",
