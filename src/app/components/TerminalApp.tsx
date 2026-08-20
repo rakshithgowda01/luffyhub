@@ -14,7 +14,6 @@ import {
   getSubjectsForSemester,
   isNotesOnlySubject,
   isPendingSemester,
-  LAB_PROGRAMS_SUBJECT,
 } from "../utils/semesterSubjects";
 import {
   contentKey,
@@ -41,8 +40,8 @@ export default function TerminalApp() {
   >({});
   const [hydrated, setHydrated] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
-  const [semester, setSemester] = useState("2nd Sem");
-  const [subject, setSubject] = useState(LAB_PROGRAMS_SUBJECT);
+  const [semester, setSemester] = useState("3rd Sem");
+  const [subject, setSubject] = useState("DAA");
   const [activeSection, setActiveSection] = useState<Section>("home");
   const [skullIndex, setSkullIndex] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
