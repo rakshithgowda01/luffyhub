@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { preloadedPrograms } from "../utils/preloadedPrograms";
 import {
-  canShowLabPrograms,
+  getBucket,
+  loadMeta,
+  saveMeta,
+} from "../utils/contentStore";
+import {
+  canBrowseLabPrograms,
   canShowProgramControls,
   getDefaultSection,
   getSectionsForSubject,
@@ -12,11 +16,18 @@ import {
   isPendingSemester,
   LAB_PROGRAMS_SUBJECT,
 } from "../utils/semesterSubjects";
-import { Program, Section } from "../utils/types";
+import {
+  contentKey,
+  ContentMap,
+  Program,
+  Section,
+} from "../utils/types";
 import AdminPanel from "./AdminPanel";
 import BusyView from "./BusyView";
 import Header from "./Header";
 import HomePage from "./HomePage";
+import ImportantView from "./ImportantView";
+import NotesView from "./NotesView";
 import ProgramView from "./ProgramView";
 import SearchModal from "./SearchModal";
 import SectionTabs from "./SectionTabs";
@@ -24,7 +35,11 @@ import SectionTabs from "./SectionTabs";
 const SKULLS = ["💀", "☠️"];
 
 export default function TerminalApp() {
-  const [programs, setPrograms] = useState<Program[]>(preloadedPrograms);
+  const [content, setContent] = useState<ContentMap>({});
+  const [customSubjects, setCustomSubjects] = useState<
+    Record<string, string[]>
+  >({});
+  const [hydrated, setHydrated] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [semester, setSemester] = useState("2nd Sem");
   const [subject, setSubject] = useState(LAB_PROGRAMS_SUBJECT);
@@ -34,15 +49,31 @@ export default function TerminalApp() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const pendingSemester = isPendingSemester(semester);
+  useEffect(() => {
+    const meta = loadMeta();
+    setContent(meta.content);
+    setCustomSubjects(meta.subjects);
+    setHydrated(true);
+  }, []);
+
+  const pendingSemester = isPendingSemester(semester, customSubjects);
   const subjects = useMemo(
-    () => getSubjectsForSemester(semester),
-    [semester]
+    () => getSubjectsForSemester(semester, customSubjects),
+    [semester, customSubjects]
   );
+
   const availableSections = useMemo(
     () => getSectionsForSubject(subject, pendingSemester),
     [pendingSemester, subject]
   );
+
+  const bucketKey = subject ? contentKey(semester, subject) : "";
+  const bucket = useMemo(
+    () => (bucketKey ? getBucket(content, bucketKey) : null),
+    [content, bucketKey]
+  );
+
+  const programs: Program[] = bucket?.programs ?? [];
 
   const showProgramControls = canShowProgramControls(
     semester,
@@ -50,10 +81,9 @@ export default function TerminalApp() {
     activeSection
   );
 
-  const canBrowsePrograms = canShowLabPrograms(
-    semester,
-    subject,
-    activeSection
+  const canBrowsePrograms = canBrowseLabPrograms(
+    activeSection,
+    programs.length
   );
 
   useEffect(() => {
@@ -64,10 +94,24 @@ export default function TerminalApp() {
   }, []);
 
   useEffect(() => {
-    if (availableSections.length > 0 && !availableSections.includes(activeSection)) {
+    if (
+      availableSections.length > 0 &&
+      !availableSections.includes(activeSection)
+    ) {
       setActiveSection(availableSections[0]);
     }
   }, [availableSections, activeSection]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (activeSection === "lab programs" && programs.length > 0) {
+      setCurrentIndex((prev) =>
+        prev !== null && prev < programs.length ? prev : 0
+      );
+    } else if (activeSection === "lab programs" && programs.length === 0) {
+      setCurrentIndex(null);
+    }
+  }, [hydrated, activeSection, programs.length, semester, subject]);
 
   const navigate = useCallback(
     (index: number) => {
@@ -106,16 +150,12 @@ export default function TerminalApp() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [canBrowsePrograms, showSearch, showAdmin, goPrev, goNext]);
 
-  function applyProgramState(
-    sem: string,
-    sub: string,
-    section: Section
-  ) {
+  function applyProgramState(section: Section, programCount: number) {
     if (section === "home") {
       setCurrentIndex(null);
       return;
     }
-    if (canShowLabPrograms(sem, sub, section)) {
+    if (section === "lab programs" && programCount > 0) {
       setCurrentIndex(0);
     } else {
       setCurrentIndex(null);
@@ -125,28 +165,40 @@ export default function TerminalApp() {
   function handleSemesterChange(sem: string) {
     setSemester(sem);
 
-    if (isPendingSemester(sem)) {
+    const semSubjects = getSubjectsForSemester(sem, customSubjects);
+
+    if (semSubjects.length === 0) {
       setSubject("");
       setActiveSection("home");
       setCurrentIndex(null);
       return;
     }
 
-    const semSubjects = getSubjectsForSemester(sem);
     const newSubject = semSubjects[0];
     const newSection = getDefaultSection();
+    const nextPrograms = getBucket(
+      content,
+      contentKey(sem, newSubject)
+    ).programs.length;
 
     setSubject(newSubject);
     setActiveSection(newSection);
-    applyProgramState(sem, newSubject, newSection);
+    applyProgramState(newSection, nextPrograms);
   }
 
   function handleSubjectChange(sub: string) {
     setSubject(sub);
 
     if (isNotesOnlySubject(sub)) {
-      setActiveSection("home");
-      setCurrentIndex(null);
+      const sections = getSectionsForSubject(sub);
+      const section = sections.includes(activeSection)
+        ? activeSection
+        : getDefaultSection();
+      setActiveSection(section);
+      applyProgramState(
+        section,
+        getBucket(content, contentKey(semester, sub)).programs.length
+      );
       return;
     }
 
@@ -156,12 +208,15 @@ export default function TerminalApp() {
       : getDefaultSection();
 
     setActiveSection(section);
-    applyProgramState(semester, sub, section);
+    applyProgramState(
+      section,
+      getBucket(content, contentKey(semester, sub)).programs.length
+    );
   }
 
   function handleSectionChange(section: Section) {
     setActiveSection(section);
-    applyProgramState(semester, subject, section);
+    applyProgramState(section, programs.length);
   }
 
   function goHome() {
@@ -169,26 +224,64 @@ export default function TerminalApp() {
     setCurrentIndex(null);
   }
 
+  function handleAdminSave(
+    nextContent: ContentMap,
+    nextSubjects: Record<string, string[]>
+  ) {
+    setContent(nextContent);
+    setCustomSubjects(nextSubjects);
+    saveMeta({ content: nextContent, subjects: nextSubjects });
+  }
+
   function renderContent() {
+    if (!hydrated) {
+      return (
+        <div className="flex flex-1 items-center justify-center text-xs text-[#52525b]">
+          loading…
+        </div>
+      );
+    }
+
     if (activeSection === "home") {
       return <HomePage />;
     }
 
-    if (pendingSemester || !canBrowsePrograms) {
+    if (pendingSemester && subjects.length === 0) {
       return <BusyView />;
     }
 
-    if (currentIndex === null) {
-      return null;
+    if (activeSection === "notes") {
+      return <NotesView notes={bucket?.notes ?? []} />;
     }
 
-    return (
-      <ProgramView
-        program={programs[currentIndex]}
-        programIndex={currentIndex}
-      />
-    );
+    if (activeSection === "important") {
+      return <ImportantView items={bucket?.important ?? []} />;
+    }
+
+    if (activeSection === "lab programs") {
+      if (programs.length === 0) {
+        return (
+          <div className="flex min-h-[40vh] flex-1 flex-col items-center justify-center px-4 py-8">
+            <p className="text-center text-sm text-[#52525b]">
+              no programs yet — admin can add them for this subject
+            </p>
+          </div>
+        );
+      }
+      if (currentIndex === null) return null;
+      return (
+        <ProgramView
+          program={programs[currentIndex]}
+          programIndex={currentIndex}
+        />
+      );
+    }
+
+    return <BusyView />;
   }
+
+  const showSubjectDropdown =
+    !pendingSemester || subjects.length > 0;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-black font-mono text-white">
@@ -208,7 +301,7 @@ export default function TerminalApp() {
         isAdmin={isAdmin}
         showProgramControls={showProgramControls}
         canBrowsePrograms={canBrowsePrograms}
-        showSubjectDropdown={!pendingSemester}
+        showSubjectDropdown={showSubjectDropdown}
       />
 
       <SectionTabs
@@ -256,12 +349,13 @@ export default function TerminalApp() {
 
       {showAdmin && (
         <AdminPanel
-          programs={programs}
+          content={content}
+          customSubjects={customSubjects}
           isLoggedIn={isAdmin}
           onLogin={() => setIsAdmin(true)}
           onLogout={() => setIsAdmin(false)}
           onClose={() => setShowAdmin(false)}
-          onUpdatePrograms={setPrograms}
+          onSave={handleAdminSave}
         />
       )}
     </div>

@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SEMESTERS } from "../utils/types";
 
 interface SemesterDropdownProps {
   selected: string;
   onSelect: (semester: string) => void;
 }
-
-const SEMESTERS = ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem"];
 
 export default function SemesterDropdown({ selected, onSelect }: SemesterDropdownProps) {
   const [open, setOpen] = useState(false);
