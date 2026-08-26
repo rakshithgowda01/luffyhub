@@ -14,6 +14,8 @@ export interface NoteItem {
   fileName: string;
   mimeType: string;
   uploadedAt: string;
+  /** Public path when saved to shared storage, e.g. /notes/id-file.pdf */
+  url?: string;
 }
 
 export interface ImportantItem {

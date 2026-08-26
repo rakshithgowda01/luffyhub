@@ -1,5 +1,4 @@
-import { javaLabPrograms } from "./preloadedJavaLab";
-import { preloadedPrograms } from "./preloadedPrograms";
+import { HubMeta } from "./defaultHubContent";
 import {
   contentKey,
   ContentMap,
@@ -9,97 +8,114 @@ import {
   Program,
   SubjectBucket,
 } from "./types";
+import { javaLabPrograms } from "./preloadedJavaLab";
+import { preloadedPrograms } from "./preloadedPrograms";
 
-/** Bump when shared lab programs change — clears old device-only overrides. */
-export const CONTENT_VERSION = 3;
-
-const META_KEY = "luffyhub-content-v3";
-const SUBJECTS_KEY = "luffyhub-subjects-v3";
-const VERSION_KEY = "luffyhub-content-version";
 const IDB_NAME = "luffyhub-notes";
 const IDB_STORE = "pdfs";
 
-export interface HubMeta {
-  content: ContentMap;
-  subjects: Record<string, string[]>;
-}
+export type { HubMeta };
 
-/** Programs shipped in the repo — visible on every device after deploy. */
-export function getSharedProgramSeeds(): Record<string, Program[]> {
+function defaultContent(): ContentMap {
   return {
-    [contentKey("2nd Sem", "data structures")]: preloadedPrograms,
-    [contentKey("3rd Sem", "java lab")]: javaLabPrograms,
+    [contentKey("2nd Sem", "data structures")]: {
+      programs: preloadedPrograms,
+      notes: [],
+      important: [],
+    },
+    [contentKey("3rd Sem", "java lab")]: {
+      programs: javaLabPrograms,
+      notes: [],
+      important: [],
+    },
   };
 }
 
-function defaultContent(): ContentMap {
-  const content: ContentMap = {};
-  for (const [key, programs] of Object.entries(getSharedProgramSeeds())) {
-    content[key] = {
-      programs,
-      notes: [],
-      important: [],
-    };
-  }
-  return content;
+export function getDefaultMeta(): HubMeta {
+  return { content: defaultContent(), subjects: {} };
 }
 
-/** Always overwrite seeded lab programs from the repo so all users see the same code. */
-function applySharedProgramSeeds(content: ContentMap): ContentMap {
-  const next: ContentMap = { ...content };
-  for (const [key, programs] of Object.entries(getSharedProgramSeeds())) {
-    const prev = next[key] ?? emptyBucket();
-    next[key] = {
-      ...prev,
-      programs,
-    };
-  }
-  return next;
-}
-
-export function loadMeta(): HubMeta {
-  if (typeof window === "undefined") {
-    return { content: defaultContent(), subjects: {} };
-  }
+export async function fetchHubMeta(): Promise<HubMeta> {
   try {
-    const storedVersion = Number(localStorage.getItem(VERSION_KEY) ?? "0");
-    if (storedVersion !== CONTENT_VERSION) {
-      localStorage.removeItem("luffyhub-content-v1");
-      localStorage.removeItem("luffyhub-subjects-v1");
-      localStorage.removeItem(META_KEY);
-      localStorage.removeItem(SUBJECTS_KEY);
-      localStorage.setItem(VERSION_KEY, String(CONTENT_VERSION));
-      const fresh = defaultContent();
-      localStorage.setItem(META_KEY, JSON.stringify(fresh));
-      return { content: fresh, subjects: {} };
-    }
-
-    const raw = localStorage.getItem(META_KEY);
-    const subjectsRaw = localStorage.getItem(SUBJECTS_KEY);
-    const content = applySharedProgramSeeds(
-      raw ? (JSON.parse(raw) as ContentMap) : defaultContent()
-    );
-    const subjects = subjectsRaw
-      ? (JSON.parse(subjectsRaw) as Record<string, string[]>)
-      : {};
-
-    return { content, subjects };
+    const res = await fetch("/api/hub-content", { cache: "no-store" });
+    if (!res.ok) return getDefaultMeta();
+    const data = (await res.json()) as HubMeta;
+    if (!data?.content) return getDefaultMeta();
+    return {
+      content: { ...defaultContent(), ...data.content },
+      subjects: data.subjects ?? {},
+      updatedAt: data.updatedAt,
+    };
   } catch {
-    return { content: defaultContent(), subjects: {} };
+    return getDefaultMeta();
   }
 }
 
-export function saveMeta(meta: HubMeta): void {
-  if (typeof window === "undefined") return;
-  // Keep shared lab programs locked to the deployed seed.
-  const content = applySharedProgramSeeds(meta.content);
-  localStorage.setItem(VERSION_KEY, String(CONTENT_VERSION));
-  localStorage.setItem(META_KEY, JSON.stringify(content));
-  localStorage.setItem(SUBJECTS_KEY, JSON.stringify(meta.subjects));
+export async function persistHubMeta(
+  meta: HubMeta,
+  credentials: { username: string; password: string }
+): Promise<{ ok: boolean; mode?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/hub-content", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: credentials.username,
+        password: credentials.password,
+        meta,
+      }),
+    });
+    const data = (await res.json()) as { ok?: boolean; mode?: string; error?: string };
+    if (!res.ok) {
+      return { ok: false, error: data.error || `Save failed (${res.status})` };
+    }
+    return { ok: true, mode: data.mode };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Save failed",
+    };
+  }
 }
 
-export function isSharedProgramKey(key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(getSharedProgramSeeds(), key);
+export async function uploadSharedNotePdf(
+  id: string,
+  file: File,
+  credentials: { username: string; password: string }
+): Promise<{ ok: boolean; url?: string; fileName?: string; error?: string }> {
+  try {
+    const form = new FormData();
+    form.set("username", credentials.username);
+    form.set("password", credentials.password);
+    form.set("id", id);
+    form.set("file", file);
+    const res = await fetch("/api/hub-notes", { method: "POST", body: form });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      url?: string;
+      fileName?: string;
+      error?: string;
+    };
+    if (!res.ok) {
+      return { ok: false, error: data.error || "Upload failed" };
+    }
+    return { ok: true, url: data.url, fileName: data.fileName };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Upload failed",
+    };
+  }
+}
+
+/** @deprecated local-only — prefer fetchHubMeta */
+export function loadMeta(): HubMeta {
+  return getDefaultMeta();
+}
+
+/** @deprecated local-only — prefer persistHubMeta */
+export function saveMeta(_meta: HubMeta): void {
+  // no-op: shared saves go through the API
 }
 
 export function getBucket(content: ContentMap, key: string): SubjectBucket {

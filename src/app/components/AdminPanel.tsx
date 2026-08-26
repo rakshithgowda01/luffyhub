@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   deleteNoteFile,
   getBucket,
-  isSharedProgramKey,
   newImportantId,
   newNoteId,
   reindexPrograms,
-  saveNoteFile,
+  uploadSharedNotePdf,
 } from "../utils/contentStore";
 import { downloadTxtFile, exportProgramsToTxt } from "../utils/fileExport";
 import { parseProgramsFromTxt } from "../utils/parser";
@@ -32,7 +31,11 @@ interface AdminPanelProps {
   onLogin: () => void;
   onLogout: () => void;
   onClose: () => void;
-  onSave: (content: ContentMap, subjects: Record<string, string[]>) => void;
+  onSave: (
+    content: ContentMap,
+    subjects: Record<string, string[]>,
+    credentials: { username: string; password: string }
+  ) => Promise<{ ok: boolean; mode?: string; error?: string }>;
 }
 
 const emptyProgram = (): Program => ({
@@ -54,12 +57,14 @@ export default function AdminPanel({
   onClose,
   onSave,
 }: AdminPanelProps) {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(ADMIN_USERNAME);
   const [password, setPassword] = useState("");
+  const [sessionPassword, setSessionPassword] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
   const [semester, setSemester] = useState("3rd Sem");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState("java lab");
   const [mode, setMode] = useState<AdminEditMode>("programs");
   const [editing, setEditing] = useState<Program | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -73,7 +78,6 @@ export default function AdminPanel({
 
   const key = subject ? contentKey(semester, subject) : "";
   const bucket = key ? getBucket(content, key) : null;
-  const sharedPrograms = key ? isSharedProgramKey(key) : false;
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -94,36 +98,54 @@ export default function AdminPanel({
     e.preventDefault();
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       setError("");
+      setSessionPassword(password);
       onLogin();
     } else {
       setError("Invalid credentials");
     }
   }
 
-  function persist(
+  async function persist(
     nextContent: ContentMap,
     nextSubjects: Record<string, string[]> = customSubjects
   ) {
-    onSave(nextContent, nextSubjects);
-    setStatus("saved");
-    setTimeout(() => setStatus(""), 2000);
+    setSaving(true);
+    setError("");
+    setStatus("saving…");
+    const result = await onSave(nextContent, nextSubjects, {
+      username: ADMIN_USERNAME,
+      password: sessionPassword || password || ADMIN_PASSWORD,
+    });
+    setSaving(false);
+    if (!result.ok) {
+      setStatus("");
+      setError(result.error || "Save failed");
+      return false;
+    }
+    setStatus(
+      result.mode === "github"
+        ? "saved for all devices"
+        : "saved (local file — add GITHUB_TOKEN on Vercel for all devices)"
+    );
+    setTimeout(() => setStatus(""), 4000);
+    return true;
   }
 
-  function updatePrograms(programs: Program[]) {
+  async function updatePrograms(programs: Program[]) {
     if (!key) return;
     const prev = getBucket(content, key);
-    persist({
+    await persist({
       ...content,
       [key]: { ...prev, programs: reindexPrograms(programs) },
     });
   }
 
-  function handleSaveProgram() {
+  async function handleSaveProgram() {
     if (!editing || !bucket) return;
     if (isNew) {
-      updatePrograms([...bucket.programs, editing]);
+      await updatePrograms([...bucket.programs, editing]);
     } else {
-      updatePrograms(
+      await updatePrograms(
         bucket.programs.map((p) => (p.id === editing.id ? editing : p))
       );
     }
@@ -131,12 +153,12 @@ export default function AdminPanel({
     setIsNew(false);
   }
 
-  function handleDeleteProgram(id: number) {
+  async function handleDeleteProgram(id: number) {
     if (!bucket) return;
-    updatePrograms(bucket.programs.filter((p) => p.id !== id));
+    await updatePrograms(bucket.programs.filter((p) => p.id !== id));
   }
 
-  function handleMoveProgram(id: number, direction: "up" | "down") {
+  async function handleMoveProgram(id: number, direction: "up" | "down") {
     if (!bucket) return;
     const list = [...bucket.programs];
     const index = list.findIndex((p) => p.id === id);
@@ -144,7 +166,7 @@ export default function AdminPanel({
     const target = direction === "up" ? index - 1 : index + 1;
     if (target < 0 || target >= list.length) return;
     [list[index], list[target]] = [list[target], list[index]];
-    updatePrograms(list);
+    await updatePrograms(list);
   }
 
   async function handlePdfUpload(file: File) {
@@ -158,17 +180,26 @@ export default function AdminPanel({
       return;
     }
     setError("");
+    setStatus("uploading PDF…");
     const id = newNoteId();
-    const buffer = await file.arrayBuffer();
-    await saveNoteFile(id, buffer);
+    const uploaded = await uploadSharedNotePdf(id, file, {
+      username: ADMIN_USERNAME,
+      password: sessionPassword || password || ADMIN_PASSWORD,
+    });
+    if (!uploaded.ok || !uploaded.url) {
+      setStatus("");
+      setError(uploaded.error || "PDF upload failed");
+      return;
+    }
     const note: NoteItem = {
       id,
       title: noteTitle.trim() || file.name.replace(/\.pdf$/i, ""),
-      fileName: file.name,
+      fileName: uploaded.fileName || file.name,
       mimeType: "application/pdf",
       uploadedAt: new Date().toISOString(),
+      url: uploaded.url,
     };
-    persist({
+    await persist({
       ...content,
       [key]: { ...bucket, notes: [...bucket.notes, note] },
     });
@@ -178,14 +209,18 @@ export default function AdminPanel({
 
   async function handleDeleteNote(note: NoteItem) {
     if (!key || !bucket) return;
-    await deleteNoteFile(note.id);
-    persist({
+    try {
+      await deleteNoteFile(note.id);
+    } catch {
+      // shared notes may only live on the server
+    }
+    await persist({
       ...content,
       [key]: { ...bucket, notes: bucket.notes.filter((n) => n.id !== note.id) },
     });
   }
 
-  function handleSaveImportant() {
+  async function handleSaveImportant() {
     if (!editingImportant || !key || !bucket) return;
     const exists = bucket.important.some((i) => i.id === editingImportant.id);
     const important = exists
@@ -193,13 +228,13 @@ export default function AdminPanel({
           i.id === editingImportant.id ? editingImportant : i
         )
       : [...bucket.important, editingImportant];
-    persist({ ...content, [key]: { ...bucket, important } });
-    setEditingImportant(null);
+    const ok = await persist({ ...content, [key]: { ...bucket, important } });
+    if (ok) setEditingImportant(null);
   }
 
-  function handleDeleteImportant(id: string) {
+  async function handleDeleteImportant(id: string) {
     if (!key || !bucket) return;
-    persist({
+    await persist({
       ...content,
       [key]: {
         ...bucket,
@@ -208,7 +243,7 @@ export default function AdminPanel({
     });
   }
 
-  function handleAddSubject() {
+  async function handleAddSubject() {
     const name = newSubjectName.trim();
     if (!name) return;
     const current = getSubjectsForSemester(semester, customSubjects);
@@ -221,18 +256,20 @@ export default function AdminPanel({
       ...customSubjects,
       [semester]: [...current, name],
     };
-    persist(content, next);
-    setNewSubjectName("");
-    setSubject(name);
+    const ok = await persist(content, next);
+    if (ok) {
+      setNewSubjectName("");
+      setSubject(name);
+    }
   }
 
-  function handleRemoveSubject(name: string) {
+  async function handleRemoveSubject(name: string) {
     const current = getSubjectsForSemester(semester, customSubjects);
     const nextList = current.filter((s) => s !== name);
     const next = { ...customSubjects, [semester]: nextList };
     const removedKey = contentKey(semester, name);
     const { [removedKey]: _, ...rest } = content;
-    persist(rest, next);
+    await persist(rest, next);
     if (subject === name) setSubject(nextList[0] ?? "");
   }
 
@@ -246,7 +283,7 @@ export default function AdminPanel({
         return;
       }
       setError("");
-      updatePrograms([...bucket.programs, ...parsed]);
+      void updatePrograms([...bucket.programs, ...parsed]);
     };
     reader.readAsText(file);
   }
@@ -420,7 +457,10 @@ export default function AdminPanel({
                 )}
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={() => {
+                    setSessionPassword("");
+                    onLogout();
+                  }}
                   className="text-xs text-[#a1a1aa] hover:text-white"
                 >
                   Logout
@@ -429,9 +469,9 @@ export default function AdminPanel({
             </div>
 
             <p className="mb-4 text-[10px] leading-relaxed text-[#52525b] sm:text-xs">
-              Site-wide lab programs (DS, java lab) ship with the deploy so every
-              device sees them. PDF notes stay on this browser unless uploaded to
-              the project. Other subjects can be edited here for this device.
+              Edits save to shared storage so every device can see them. On Vercel,
+              set GITHUB_TOKEN (repo write) for live multi-device sync.
+              {saving ? " · working…" : ""}
             </p>
 
             <div className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -529,17 +569,10 @@ export default function AdminPanel({
 
             {mode === "programs" && bucket && (
               <div>
-                {sharedPrograms ? (
-                  <p className="mb-4 text-xs text-[#a1a1aa]">
-                    This subject is site-wide (synced from GitHub). Add/edit/delete
-                    here won&apos;t show on other devices — send programs to update
-                    the deploy.
-                  </p>
-                ) : null}
                 <div className="mb-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={sharedPrograms}
+                    disabled={saving}
                     onClick={() => {
                       setEditing(emptyProgram());
                       setIsNew(true);
@@ -562,7 +595,7 @@ export default function AdminPanel({
                   </button>
                   <button
                     type="button"
-                    disabled={sharedPrograms}
+                    disabled={saving}
                     onClick={() => importRef.current?.click()}
                     className="border border-[#27272a] px-3 py-1.5 text-xs text-white hover:border-[#52525b] disabled:opacity-40"
                   >
@@ -597,18 +630,17 @@ export default function AdminPanel({
                         <div className="flex shrink-0 gap-1">
                           <button
                             type="button"
-                            onClick={() => handleMoveProgram(program.id, "up")}
-                            disabled={sharedPrograms || index === 0}
+                            onClick={() => void handleMoveProgram(program.id, "up")}
+                            disabled={saving || index === 0}
                             className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             ↑
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleMoveProgram(program.id, "down")}
+                            onClick={() => void handleMoveProgram(program.id, "down")}
                             disabled={
-                              sharedPrograms ||
-                              index === bucket.programs.length - 1
+                              saving || index === bucket.programs.length - 1
                             }
                             className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
@@ -616,7 +648,7 @@ export default function AdminPanel({
                           </button>
                           <button
                             type="button"
-                            disabled={sharedPrograms}
+                            disabled={saving}
                             onClick={() => {
                               setEditing({ ...program });
                               setIsNew(false);
@@ -627,8 +659,8 @@ export default function AdminPanel({
                           </button>
                           <button
                             type="button"
-                            disabled={sharedPrograms}
-                            onClick={() => handleDeleteProgram(program.id)}
+                            disabled={saving}
+                            onClick={() => void handleDeleteProgram(program.id)}
                             className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             del

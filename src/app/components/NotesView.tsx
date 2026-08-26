@@ -16,6 +16,10 @@ export default function NotesView({ notes }: NotesViewProps) {
     setError("");
     setOpening(note.id);
     try {
+      if (note.url) {
+        window.open(note.url, "_blank", "noopener,noreferrer");
+        return;
+      }
       const data = await loadNoteFile(note.id);
       if (!data) {
         setError(`File missing for "${note.title}". Re-upload from admin.`);

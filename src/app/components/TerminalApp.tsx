@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchHubMeta,
   getBucket,
-  loadMeta,
-  saveMeta,
+  persistHubMeta,
 } from "../utils/contentStore";
 import {
   canBrowseLabPrograms,
@@ -41,7 +41,7 @@ export default function TerminalApp() {
   const [hydrated, setHydrated] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [semester, setSemester] = useState("3rd Sem");
-  const [subject, setSubject] = useState("DAA");
+  const [subject, setSubject] = useState("java lab");
   const [activeSection, setActiveSection] = useState<Section>("home");
   const [skullIndex, setSkullIndex] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
@@ -49,10 +49,17 @@ export default function TerminalApp() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const meta = loadMeta();
-    setContent(meta.content);
-    setCustomSubjects(meta.subjects);
-    setHydrated(true);
+    let cancelled = false;
+    (async () => {
+      const meta = await fetchHubMeta();
+      if (cancelled) return;
+      setContent(meta.content);
+      setCustomSubjects(meta.subjects);
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const pendingSemester = isPendingSemester(semester, customSubjects);
@@ -223,13 +230,20 @@ export default function TerminalApp() {
     setCurrentIndex(null);
   }
 
-  function handleAdminSave(
+  async function handleAdminSave(
     nextContent: ContentMap,
-    nextSubjects: Record<string, string[]>
+    nextSubjects: Record<string, string[]>,
+    credentials: { username: string; password: string }
   ) {
-    setContent(nextContent);
-    setCustomSubjects(nextSubjects);
-    saveMeta({ content: nextContent, subjects: nextSubjects });
+    const result = await persistHubMeta(
+      { content: nextContent, subjects: nextSubjects },
+      credentials
+    );
+    if (result.ok) {
+      setContent(nextContent);
+      setCustomSubjects(nextSubjects);
+    }
+    return result;
   }
 
   function renderContent() {
