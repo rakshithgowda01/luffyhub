@@ -1,3 +1,4 @@
+import { javaLabPrograms } from "./preloadedJavaLab";
 import { preloadedPrograms } from "./preloadedPrograms";
 import {
   contentKey,
@@ -9,8 +10,12 @@ import {
   SubjectBucket,
 } from "./types";
 
-const META_KEY = "luffyhub-content-v1";
-const SUBJECTS_KEY = "luffyhub-subjects-v1";
+/** Bump when shared lab programs change — clears old device-only overrides. */
+export const CONTENT_VERSION = 3;
+
+const META_KEY = "luffyhub-content-v3";
+const SUBJECTS_KEY = "luffyhub-subjects-v3";
+const VERSION_KEY = "luffyhub-content-version";
 const IDB_NAME = "luffyhub-notes";
 const IDB_STORE = "pdfs";
 
@@ -19,15 +24,37 @@ export interface HubMeta {
   subjects: Record<string, string[]>;
 }
 
-function defaultContent(): ContentMap {
-  const key = contentKey("2nd Sem", "data structures");
+/** Programs shipped in the repo — visible on every device after deploy. */
+export function getSharedProgramSeeds(): Record<string, Program[]> {
   return {
-    [key]: {
-      programs: preloadedPrograms,
+    [contentKey("2nd Sem", "data structures")]: preloadedPrograms,
+    [contentKey("3rd Sem", "java lab")]: javaLabPrograms,
+  };
+}
+
+function defaultContent(): ContentMap {
+  const content: ContentMap = {};
+  for (const [key, programs] of Object.entries(getSharedProgramSeeds())) {
+    content[key] = {
+      programs,
       notes: [],
       important: [],
-    },
-  };
+    };
+  }
+  return content;
+}
+
+/** Always overwrite seeded lab programs from the repo so all users see the same code. */
+function applySharedProgramSeeds(content: ContentMap): ContentMap {
+  const next: ContentMap = { ...content };
+  for (const [key, programs] of Object.entries(getSharedProgramSeeds())) {
+    const prev = next[key] ?? emptyBucket();
+    next[key] = {
+      ...prev,
+      programs,
+    };
+  }
+  return next;
 }
 
 export function loadMeta(): HubMeta {
@@ -35,22 +62,27 @@ export function loadMeta(): HubMeta {
     return { content: defaultContent(), subjects: {} };
   }
   try {
+    const storedVersion = Number(localStorage.getItem(VERSION_KEY) ?? "0");
+    if (storedVersion !== CONTENT_VERSION) {
+      localStorage.removeItem("luffyhub-content-v1");
+      localStorage.removeItem("luffyhub-subjects-v1");
+      localStorage.removeItem(META_KEY);
+      localStorage.removeItem(SUBJECTS_KEY);
+      localStorage.setItem(VERSION_KEY, String(CONTENT_VERSION));
+      const fresh = defaultContent();
+      localStorage.setItem(META_KEY, JSON.stringify(fresh));
+      return { content: fresh, subjects: {} };
+    }
+
     const raw = localStorage.getItem(META_KEY);
     const subjectsRaw = localStorage.getItem(SUBJECTS_KEY);
-    const content = raw ? (JSON.parse(raw) as ContentMap) : defaultContent();
+    const content = applySharedProgramSeeds(
+      raw ? (JSON.parse(raw) as ContentMap) : defaultContent()
+    );
     const subjects = subjectsRaw
       ? (JSON.parse(subjectsRaw) as Record<string, string[]>)
       : {};
 
-    // Ensure DS seed exists if never customized
-    const dsKey = contentKey("2nd Sem", "data structures");
-    if (!content[dsKey]) {
-      content[dsKey] = {
-        programs: preloadedPrograms,
-        notes: [],
-        important: [],
-      };
-    }
     return { content, subjects };
   } catch {
     return { content: defaultContent(), subjects: {} };
@@ -59,8 +91,15 @@ export function loadMeta(): HubMeta {
 
 export function saveMeta(meta: HubMeta): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(META_KEY, JSON.stringify(meta.content));
+  // Keep shared lab programs locked to the deployed seed.
+  const content = applySharedProgramSeeds(meta.content);
+  localStorage.setItem(VERSION_KEY, String(CONTENT_VERSION));
+  localStorage.setItem(META_KEY, JSON.stringify(content));
   localStorage.setItem(SUBJECTS_KEY, JSON.stringify(meta.subjects));
+}
+
+export function isSharedProgramKey(key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(getSharedProgramSeeds(), key);
 }
 
 export function getBucket(content: ContentMap, key: string): SubjectBucket {

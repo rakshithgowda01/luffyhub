@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   deleteNoteFile,
   getBucket,
+  isSharedProgramKey,
   newImportantId,
   newNoteId,
   reindexPrograms,
@@ -72,6 +73,7 @@ export default function AdminPanel({
 
   const key = subject ? contentKey(semester, subject) : "";
   const bucket = key ? getBucket(content, key) : null;
+  const sharedPrograms = key ? isSharedProgramKey(key) : false;
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -426,6 +428,12 @@ export default function AdminPanel({
               </div>
             </div>
 
+            <p className="mb-4 text-[10px] leading-relaxed text-[#52525b] sm:text-xs">
+              Site-wide lab programs (DS, java lab) ship with the deploy so every
+              device sees them. PDF notes stay on this browser unless uploaded to
+              the project. Other subjects can be edited here for this device.
+            </p>
+
             <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="text-xs text-[#a1a1aa]">semester</span>
@@ -521,14 +529,22 @@ export default function AdminPanel({
 
             {mode === "programs" && bucket && (
               <div>
+                {sharedPrograms ? (
+                  <p className="mb-4 text-xs text-[#a1a1aa]">
+                    This subject is site-wide (synced from GitHub). Add/edit/delete
+                    here won&apos;t show on other devices — send programs to update
+                    the deploy.
+                  </p>
+                ) : null}
                 <div className="mb-4 flex flex-wrap gap-2">
                   <button
                     type="button"
+                    disabled={sharedPrograms}
                     onClick={() => {
                       setEditing(emptyProgram());
                       setIsNew(true);
                     }}
-                    className="border border-[#27272a] px-3 py-1.5 text-xs text-white hover:border-[#52525b]"
+                    className="border border-[#27272a] px-3 py-1.5 text-xs text-white hover:border-[#52525b] disabled:opacity-40"
                   >
                     Add Program
                   </button>
@@ -546,8 +562,9 @@ export default function AdminPanel({
                   </button>
                   <button
                     type="button"
+                    disabled={sharedPrograms}
                     onClick={() => importRef.current?.click()}
-                    className="border border-[#27272a] px-3 py-1.5 text-xs text-white hover:border-[#52525b]"
+                    className="border border-[#27272a] px-3 py-1.5 text-xs text-white hover:border-[#52525b] disabled:opacity-40"
                   >
                     Import .txt
                   </button>
@@ -581,7 +598,7 @@ export default function AdminPanel({
                           <button
                             type="button"
                             onClick={() => handleMoveProgram(program.id, "up")}
-                            disabled={index === 0}
+                            disabled={sharedPrograms || index === 0}
                             className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             ↑
@@ -589,25 +606,30 @@ export default function AdminPanel({
                           <button
                             type="button"
                             onClick={() => handleMoveProgram(program.id, "down")}
-                            disabled={index === bucket.programs.length - 1}
+                            disabled={
+                              sharedPrograms ||
+                              index === bucket.programs.length - 1
+                            }
                             className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             ↓
                           </button>
                           <button
                             type="button"
+                            disabled={sharedPrograms}
                             onClick={() => {
                               setEditing({ ...program });
                               setIsNew(false);
                             }}
-                            className="px-2 text-xs text-[#a1a1aa] hover:text-white"
+                            className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             edit
                           </button>
                           <button
                             type="button"
+                            disabled={sharedPrograms}
                             onClick={() => handleDeleteProgram(program.id)}
-                            className="px-2 text-xs text-[#a1a1aa] hover:text-white"
+                            className="px-2 text-xs text-[#a1a1aa] hover:text-white disabled:text-[#52525b]"
                           >
                             del
                           </button>
